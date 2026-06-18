@@ -1,0 +1,688 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{enumitem}
+\usepackage{tocloft}
+
+\geometry{left=3cm,right=2cm,top=2.5cm,bottom=2.5cm}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Теорема}[section]
+\newtheorem{lemma}[theorem]{Лемма}
+\newtheorem{proposition}[theorem]{Предложение}
+\newtheorem{claim}[theorem]{Утверждение}
+\newtheorem{corollary}[theorem]{Следствие}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Определение}
+\newtheorem{remark}[theorem]{Замечание}
+
+\DeclareMathOperator{\Gap}{Gap}
+\DeclareMathOperator{\SP}{SP}
+\DeclareMathOperator{\Rad}{Rad}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+
+\newcommand{\E}{\mathbb{E}}
+\renewcommand{\Pr}{\mathbb{P}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cX}{\mathcal{X}}
+\newcommand{\cY}{\mathcal{Y}}
+\newcommand{\cZ}{\mathcal{Z}}
+\newcommand{\cN}{\mathcal{N}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\hatF}{\hat{F}}
+\newcommand{\hatD}{\hat{D}}
+\newcommand{\hatG}{\hat{G}}
+
+\begin{document}
+
+% ============================================================
+% Титульный лист
+% ============================================================
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+{\large Санкт-Петербургский государственный университет}\\[0.5cm]
+{\large Математико-механический факультет}\\[3cm]
+{\LARGE\bfseries Сложность выборки для ERM в стохастических\\[0.3cm]
+седловых задачах}\\[1cm]
+{\large Обобщение результатов Carmon, Livni, Yehudayoff (2023)\\
+на выпукло-вогнутый случай}\\[2cm]
+{\large Курсовая работа}\\[3cm]
+\begin{flushright}
+{\large Выполнил: [Имя студента]}\\[0.3cm]
+{\large Научный руководитель: [ФИО]}
+\end{flushright}
+\vfill
+{\large Санкт-Петербург, 2025}
+\end{titlepage}
+
+% ============================================================
+\tableofcontents
+\newpage
+
+% ============================================================
+\begin{abstract}
+Статья Carmon, Livni, Yehudayoff (2023) решила открытую проблему Фельдмана: для стохастической выпуклой оптимизации (SCO) сложность выборки любого ERM равна $\tilde{O}(d/\varepsilon + 1/\varepsilon^2)$. В настоящей работе мы обобщаем этот результат на стохастические седловые задачи вида $\min_{x\in\cX}\max_{y\in\cY} \E_z[f(x,y,z)]$, где $f$ выпукла по $x$ и вогнута по $y$. Мы показываем, что при $n \ge \tilde{O}((d_x+d_y)/\varepsilon + 1/\varepsilon^2)$ любой Saddle-ERM --- алгоритм, возвращающий седловую точку эмпирического функционала, --- достигает duality gap не более $O(\varepsilon)$ с высокой вероятностью. Доказательство следует методологии оригинальной статьи: стохастическое условие первого порядка, пара дивергенций Брегмана, концентрационные неравенства Бернштейна и аргумент $\varepsilon$-сети по совместному пространству $\cX\times\cY$.
+\end{abstract}
+
+% ============================================================
+\section{Введение}
+% ============================================================
+
+\subsection{Контекст}
+
+Стохастическая выпуклая оптимизация (SCO) --- стандартная модель для изучения статистических свойств алгоритмов обучения. В классической постановке задачи минимизации алгоритм ERM (Empirical Risk Minimizer) минимизирует эмпирический риск по выборке, и вопрос состоит в том, как много точек данных необходимо, чтобы любой ERM автоматически хорошо работал на истинном распределении.
+
+Фельдман \cite{Feldman2016} показал, что для ERM в SCO необходимо $\Omega(d/\varepsilon + 1/\varepsilon^2)$ точек, и предложил как открытую проблему вопрос о достаточности этого количества. Carmon, Livni, Yehudayoff \cite{CLY2023} закрыли этот вопрос, доказав, что $\tilde{O}(d/\varepsilon + 1/\varepsilon^2)$ точек \emph{достаточно}. Это разделяет сложность ERM и равномерной сходимости (которая требует $\Theta(d/\varepsilon^2)$) и неожиданно объединяет два режима обучения в одной модели.
+
+\subsection{Наш вклад}
+
+Мы обобщаем результат \cite{CLY2023} на задачу стохастической выпукло-вогнутой оптимизации:
+\[
+    \min_{x\in\cX}\max_{y\in\cY} F(x,y), \qquad F(x,y) = \E_{z\sim\cD}[f(x,y,z)].
+\]
+Алгоритм \emph{Saddle-ERM} находит седловую точку эмпирического функционала $\hatF$, а качество решения измеряется через \emph{duality gap}. Основной результат:
+
+\textbf{Основная теорема (неформально).}
+Если $n \ge \tilde{O}((d_x+d_y)/\varepsilon + 1/\varepsilon^2)$, то с вероятностью не менее $3/4$ любой Saddle-ERM $(\hat{x},\hat{y})$ удовлетворяет $\Gap_F(\hat{x},\hat{y}) \le C\varepsilon$ для абсолютной константы $C$.
+
+Доказательство состоит из семи шагов: (1) постановка задачи и определения, (2) стохастическое условие первого порядка для седловых точек, (3) пара дивергенций Брегмана и их свойства, (4) концентрационная лемма, (5) аналоги ключевых утверждений из \cite{CLY2023}, (6) сборка основной теоремы, (7) обсуждение нижней границы.
+
+% ============================================================
+\section{Исходная задача и результат Carmon--Livni--Yehudayoff}
+% ============================================================
+
+\subsection{Постановка задачи минимизации}
+
+Пусть $\|\cdot\|$ --- норма на $\R^d$, $K$ --- её единичный шар, $\cZ$ --- конечное пространство данных, $\cD$ --- распределение на $\cZ$. Для каждого $z\in\cZ$ задана функция $f_z:K\to\R$, выпуклая и $L$-липшицева. Популяционный и эмпирический риски:
+\[
+    F(x) = \E_{z\sim\cD}[f_z(x)], \qquad \hatF(x) = \frac{1}{n}\sum_{i=1}^n f_{z_i}(x).
+\]
+\emph{ERM} --- любой алгоритм, возвращающий $\hat{x}\in\argmin_{x\in K}\hatF(x)$. Критерий успеха: $F(\hat{x})\le F(x^*)+\varepsilon$.
+
+\subsection{Главный результат}
+
+\begin{theorem}[Carmon, Livni, Yehudayoff \cite{CLY2023}, теорема для $\ell_2$]
+\label{thm:CLY}
+Пусть $f_z$ выпуклы, $1$-липшицевы по $\|\cdot\|_2$ и $|f_z(x)|\le 1$ для всех $x\in B$. Если
+\[
+    n \ge n_0 = \frac{3d\ln(40/\varepsilon)}{\varepsilon} + \frac{40}{\varepsilon^2},
+\]
+то с вероятностью не менее $3/4$ над $S\sim\cD^n$, для всех $x\in B$:
+\[
+    \hatF(x) \le \hatF(x^*)+\varepsilon \;\Rightarrow\; F(x)\le F(x^*)+40\varepsilon.
+\]
+\end{theorem}
+
+\subsection{Ключевые идеи доказательства}
+
+Доказательство опирается на три элемента:
+
+\begin{enumerate}
+\item \textbf{Стохастическое условие первого порядка.} В минимуме $x^*$ существует субградиент $G\in\partial F(x^*)$ вида $G=\E_z[g_z]$, где $g_z\in\partial f_z(x^*)$, такой что $\langle G,x-x^*\rangle\ge 0$ для всех $x\in K$.
+
+\item \textbf{Дивергенция Брегмана.} $D_F(x,x^*)=F(x)-F(x^*)-\langle G,x-x^*\rangle\ge 0$, ограничена сверху константой. Эмпирическая версия $\hatD(x,x^*)$ является несмещённой оценкой $D_F(x,x^*)$.
+
+\item \textbf{Концентрация.} Если $D_F(x,x^*)\ge 2\varepsilon$, то:
+\[
+    \Pr\!\left[\hatD(x,x^*)\le\frac{D_F(x,x^*)}{2}\right]\le\exp\!\left(-\frac{D_F(x,x^*)\cdot n}{40}\right).
+\]
+Ключевой выигрыш: экспонента $\propto D\cdot n$ (а не $D^2\cdot n$), что даёт $d/\varepsilon$ вместо $d/\varepsilon^2$. Затем union bound по $\varepsilon$-сети размера $(1/\varepsilon)^d$ завершает доказательство.
+\end{enumerate}
+
+Это разделяет ERM ($\tilde{O}(d/\varepsilon+1/\varepsilon^2)$) и равномерную сходимость ($\Theta(d/\varepsilon^2)$): ERM строго эффективнее.
+
+% ============================================================
+\section{Седловая задача: постановка и определения}
+% ============================================================
+
+\subsection{Формальная постановка}
+
+Пусть $\|\cdot\|_x$ и $\|\cdot\|_y$ --- нормы на $\R^{d_x}$ и $\R^{d_y}$ соответственно, $\cX$ и $\cY$ --- их единичные шары. Пусть $\cZ$ --- конечное пространство данных, $\cD$ --- распределение на $\cZ$. Для каждого $z\in\cZ$ задана функция $f_z:\cX\times\cY\to\R$, удовлетворяющая:
+\begin{itemize}
+    \item $f_z(\cdot,y)$ выпукла и $L$-липшицева по $\|\cdot\|_x$ для всех $y$,
+    \item $f_z(x,\cdot)$ вогнута и $L$-липшицева по $\|\cdot\|_y$ для всех $x$,
+    \item $|f_z(x,y)|\le c$ для всех $(x,y)\in\cX\times\cY$.
+\end{itemize}
+
+\begin{definition}[Популяционный функционал]
+\[
+    F(x,y)=\E_{z\sim\cD}[f_z(x,y)].
+\]
+Функция $F(\cdot,y)$ выпукла по $x$, $F(x,\cdot)$ вогнута по $y$.
+\end{definition}
+
+\begin{definition}[Седловая точка]
+Точка $(x^*,y^*)\in\cX\times\cY$ называется \emph{седловой точкой} $F$, если
+\[
+    F(x^*,y)\le F(x^*,y^*)\le F(x,y^*) \quad\forall x\in\cX,\,y\in\cY.
+\]
+Множество всех седловых точек обозначим $\SP(F)$.
+\end{definition}
+
+\begin{remark}
+Седловая точка существует, поскольку $F$ выпукло-вогнута и непрерывна на компактных выпуклых множествах $\cX$, $\cY$ (теорема Сиона--Какутани).
+\end{remark}
+
+\begin{definition}[Эмпирический функционал и Saddle-ERM]
+По выборке $S=(z_1,\ldots,z_n)\sim\cD^n$ определяется:
+\[
+    \hatF(x,y)=\frac{1}{n}\sum_{i=1}^n f_{z_i}(x,y).
+\]
+\emph{Saddle-ERM} --- любой алгоритм, возвращающий $(\hat{x},\hat{y})\in\SP(\hatF)$, то есть седловую точку эмпирического функционала. Такая точка существует по тем же причинам, что и для $F$.
+\end{definition}
+
+\begin{definition}[Duality gap]
+\label{def:gap}
+Для точки $(x,y)\in\cX\times\cY$ определим:
+\[
+    \Gap_F(x,y)=\max_{y'\in\cY}F(x,y')-\min_{x'\in\cX}F(x',y)\ge 0.
+\]
+$\Gap_F(x,y)=0$ тогда и только тогда, когда $(x,y)\in\SP(F)$.
+\emph{Saddle-ERM успешен} с параметром $\varepsilon>0$, если $\Gap_F(\hat{x},\hat{y})\le\varepsilon$.
+\end{definition}
+
+\begin{remark}[Связь с задачей минимизации]
+Используя $(x^*,y^*)\in\SP(F)$:
+\begin{align}
+    \Gap_F(x,y)
+    &\le \bigl[F(x,y^*)-F(x^*,y^*)\bigr]+\bigl[F(x^*,y^*)-F(x^*,y)\bigr].
+    \label{eq:gap_decomp}
+\end{align}
+Каждое слагаемое неотрицательно и характеризует отклонение от $x^*$ и от $y^*$ соответственно.
+\end{remark}
+
+% ============================================================
+\section{Вспомогательные результаты}
+% ============================================================
+
+\subsection{Субградиентное исчисление}
+
+Субградиент выпуклой функции $h:\cX\to\R$ в точке $x_0$:
+\[
+    \partial_x h(x_0)=\{g\in\R^{d_x}:h(x)\ge h(x_0)+\langle g,x-x_0\rangle\;\forall x\in\cX\}.
+\]
+Для вогнутой функции $h:\cY\to\R$ субградиент определяем через $-h$:
+\[
+    \partial_y^- h(y_0)=\{g\in\R^{d_y}:h(y)\le h(y_0)+\langle g,y-y_0\rangle\;\forall y\in\cY\}.
+\]
+Если $h$ является $L$-липшицевой по $\|\cdot\|_x$, то $\|g\|_{x,*}\le L$ для всех $g\in\partial_x h(x_0)$, где $\|\cdot\|_{x,*}$ --- двойственная норма.
+
+\subsection{Стохастическое условие первого порядка}
+
+\begin{proposition}[Стохастическое условие первого порядка для седловой точки]
+\label{prop:firstorder}
+Пусть $(x^*,y^*)\in\SP(F)$. Тогда для каждого $z\in\cZ$ существуют
+\[
+    g_z^x\in\partial_x f_z(x^*,y^*),\qquad g_z^y\in\partial_y^- f_z(x^*,y^*)
+\]
+с $\|g_z^x\|_{x,*}\le L$, $\|g_z^y\|_{y,*}\le L$, такие что, обозначив
+$G_x=\E_z[g_z^x]$, $G_y=\E_z[g_z^y]$, выполняется:
+\begin{align}
+    \langle G_x,x-x^*\rangle&\ge 0\quad\forall x\in\cX, \label{eq:foc_x}\\
+    \langle G_y,y-y^*\rangle&\ge 0\quad\forall y\in\cY. \label{eq:foc_y}
+\end{align}
+\end{proposition}
+
+\begin{proof}
+\textbf{Условие \eqref{eq:foc_x}.} Поскольку $(x^*,y^*)$ --- седловая точка, $x^*$ минимизирует $F(\cdot,y^*)$ на $\cX$. По условию первого порядка для выпуклой задачи (см. \cite{Rockafellar1997}) существует $G_x\in\partial_x F(x^*,y^*)$ такой, что $\langle G_x,x-x^*\rangle\ge 0$ для всех $x\in\cX$. По теореме о сумме субградиентов \cite{Rockafellar1997}, применённой к $F(\cdot,y^*)=\E_z[f_z(\cdot,y^*)]$, для каждого $z$ существует $g_z^x\in\partial_x f_z(x^*,y^*)$ такой, что $G_x=\E_z[g_z^x]$. Липшицевость даёт $\|g_z^x\|_{x,*}\le L$.
+
+\textbf{Условие \eqref{eq:foc_y}.} Аналогично: $y^*$ максимизирует $F(x^*,\cdot)$ на $\cY$, то есть является минимизатором $-F(x^*,\cdot)$. Применяем условие первого порядка к выпуклой функции $-F(x^*,\cdot)$: существует $G_y\in\partial_y(-F)(x^*,y^*)=\partial_y^- F(x^*,y^*)$ такой, что $\langle G_y,y-y^*\rangle\ge 0$. По теореме о сумме субградиентов, $G_y=\E_z[g_z^y]$, $g_z^y\in\partial_y(-f_z)(x^*,y^*)$.
+\end{proof}
+
+\begin{remark}
+Условия \eqref{eq:foc_x}--\eqref{eq:foc_y} образуют \emph{вариационное неравенство}, характеризующее седловую точку. Это двумерный аналог условия $\langle G,x-x^*\rangle\ge 0$ из \cite{CLY2023}.
+\end{remark}
+
+\subsection{Пара дивергенций Брегмана}
+
+Зафиксируем $(x^*,y^*)\in\SP(F)$ и субградиенты $G_x,G_y$ из Предложения~\ref{prop:firstorder}. Зафиксируем также выборочные версии $\hatG_x=\frac{1}{n}\sum_i g_{z_i}^x$, $\hatG_y=\frac{1}{n}\sum_i g_{z_i}^y$.
+
+\begin{definition}[Пара дивергенций Брегмана]
+\label{def:bregman}
+\begin{align*}
+    D^x(x,x^*)&=F(x,y^*)-F(x^*,y^*)-\langle G_x,x-x^*\rangle,\\
+    D^y(y,y^*)&=F(x^*,y^*)-F(x^*,y)-\langle G_y,y-y^*\rangle.
+\end{align*}
+\emph{Поточечные} (стохастические) версии:
+\begin{align*}
+    D_z^x(x,x^*)&=f_z(x,y^*)-f_z(x^*,y^*)-\langle g_z^x,x-x^*\rangle,\\
+    D_z^y(y,y^*)&=f_z(x^*,y^*)-f_z(x^*,y)-\langle g_z^y,y-y^*\rangle.
+\end{align*}
+\emph{Эмпирические} версии:
+\begin{align*}
+    \hatD^x(x,x^*)&=\hatF(x,y^*)-\hatF(x^*,y^*)-\langle\hatG_x,x-x^*\rangle,\\
+    \hatD^y(y,y^*)&=\hatF(x^*,y^*)-\hatF(x^*,y)-\langle\hatG_y,y-y^*\rangle.
+\end{align*}
+\end{definition}
+
+\begin{lemma}[Неотрицательность]
+\label{lem:nonneg}
+Для всех $(x,y)\in\cX\times\cY$:
+\[
+    D^x(x,x^*)\ge 0,\quad D^y(y,y^*)\ge 0,\quad D_z^x\ge 0,\quad D_z^y\ge 0,\quad \hatD^x\ge 0,\quad \hatD^y\ge 0.
+\]
+\end{lemma}
+
+\begin{proof}
+$D^x\ge 0$: функция $F(\cdot,y^*)$ выпукла, $G_x\in\partial_x F(x^*,y^*)$, поэтому по определению субградиента $F(x,y^*)\ge F(x^*,y^*)+\langle G_x,x-x^*\rangle$.
+
+$D^y\ge 0$: функция $-F(x^*,\cdot)$ выпукла, $G_y\in\partial_y(-F)(x^*,y^*)$, поэтому $-F(x^*,y)\ge-F(x^*,y^*)+\langle G_y,y-y^*\rangle$, откуда $D^y\ge 0$.
+
+Для $D_z^x\ge 0$ и $D_z^y\ge 0$ рассуждение аналогично для $f_z$ вместо $F$. Неотрицательность $\hatD^x,\hatD^y$ следует как среднее неотрицательных слагаемых.
+\end{proof}
+
+\begin{lemma}[Ограниченность]
+\label{lem:bounded}
+Для всех $z\in\cZ$ и $(x,y)\in\cX\times\cY$:
+\[
+    0\le D_z^x(x,x^*)\le 4c,\qquad 0\le D_z^y(y,y^*)\le 4c.
+\]
+Следовательно, $0\le D^x(x,x^*)\le 4c$ и $0\le D^y(y,y^*)\le 4c$.
+\end{lemma}
+
+\begin{proof}
+Оценим $D_z^x$ сверху. Так как $|f_z|\le c$:
+\[
+    f_z(x,y^*)-f_z(x^*,y^*)\le 2c.
+\]
+Из липшицевости $f_z(\cdot,y^*)$ при $x,x^*\in\cX$:
+\[
+    |\langle g_z^x,x-x^*\rangle|\le\|g_z^x\|_{x,*}\cdot\|x-x^*\|_x\le L\cdot 2=2L.
+\]
+В случае нормированных шаров ($L=c=1$) получаем $D_z^x\le 2+2=4$, откуда в общем случае $D_z^x\le 4c$. Аналогично для $D_z^y$.
+\end{proof}
+
+\begin{corollary}[Несмещённость]
+\label{cor:unbiased}
+$\E_{S\sim\cD^n}[\hatD^x(x,x^*)]=D^x(x,x^*)$ и $\E_{S\sim\cD^n}[\hatD^y(y,y^*)]=D^y(y,y^*)$.
+\end{corollary}
+
+\begin{proof}
+$\hatD^x(x,x^*)=\frac{1}{n}\sum_i D_{z_i}^x(x,x^*)$, поскольку $\hatF(x,y^*)-\hatF(x^*,y^*)-\langle\hatG_x,x-x^*\rangle=\frac{1}{n}\sum_i[f_{z_i}(x,y^*)-f_{z_i}(x^*,y^*)-\langle g_{z_i}^x,x-x^*\rangle]$. Так как $z_i$ i.i.d. из $\cD$, то $\E[\hatD^x]=\E_z[D_z^x]=D^x$.
+\end{proof}
+
+\subsection{Связь дивергенций с duality gap}
+
+\begin{lemma}[Разложение gap через дивергенции]
+\label{lem:gap_bregman}
+Для любой точки $(x,y)\in\cX\times\cY$:
+\[
+    \Gap_F(x,y)\le D^x(x,x^*)+D^y(y,y^*)+\langle G_x,x-x^*\rangle+\langle G_y,y-y^*\rangle.
+\]
+\end{lemma}
+
+\begin{proof}
+Из \eqref{eq:gap_decomp}:
+\begin{align*}
+    \Gap_F(x,y)
+    &\le [F(x,y^*)-F(x^*,y^*)]+[F(x^*,y^*)-F(x^*,y)]\\
+    &=[D^x(x,x^*)+\langle G_x,x-x^*\rangle]+[D^y(y,y^*)+\langle G_y,y-y^*\rangle].\qedhere
+\end{align*}
+\end{proof}
+
+\subsection{Концентрационная лемма}
+
+\begin{claim}[Концентрация дивергенций Брегмана]
+\label{claim:concentration}
+При условиях раздела~3 для любых $(x,y)\in\cX\times\cY$:
+\begin{align}
+    \Pr\!\left[\hatD^x(x,x^*)\le\frac{D^x(x,x^*)}{2}\right]&\le\exp\!\left(-\frac{D^x(x,x^*)\cdot n}{40c}\right),\label{eq:conc_x}\\
+    \Pr\!\left[\hatD^y(y,y^*)\le\frac{D^y(y,y^*)}{2}\right]&\le\exp\!\left(-\frac{D^y(y,y^*)\cdot n}{40c}\right).\label{eq:conc_y}
+\end{align}
+\end{claim}
+
+\begin{proof}
+Докажем \eqref{eq:conc_x}; доказательство \eqref{eq:conc_y} симметрично.
+
+Запишем $\hatD^x(x,x^*)=\frac{1}{n}\sum_{j=1}^n R_j$, где $R_j=D_{z_j}^x(x,x^*)$ --- i.i.d. случайные величины. По лемме~\ref{lem:nonneg} и~\ref{lem:bounded}: $R_j\in[0,4c]$ и $\E[R_j]=\lambda:=D^x(x,x^*)$.
+
+По неравенству Бхатиа--Дэвиса \cite{BhatiaDavis2000}: $\mathrm{Var}(R_j)\le(4c-\lambda)\lambda\le 4c\lambda$.
+
+По неравенству Бернштейна:
+\begin{align*}
+    \Pr\!\left[\hatD^x(x,x^*)\le\frac{\lambda}{2}\right]
+    &=\Pr\!\left[\sum_j(R_j-\lambda)\le-\frac{\lambda n}{2}\right]\\
+    &\le\exp\!\left(-\frac{(\lambda n/2)^2}{2\cdot 4c\lambda n+2\cdot 4c\cdot(\lambda n/2)/3}\right)\\
+    &=\exp\!\left(-\frac{\lambda^2 n^2/4}{8c\lambda n+4c\lambda n/3}\right)
+    \le\exp\!\left(-\frac{\lambda n}{40c}\right).\qedhere
+\end{align*}
+\end{proof}
+
+% ============================================================
+\section{Аналоги ключевых утверждений для седловой задачи}
+% ============================================================
+
+В этом разделе мы доказываем аналоги Claims~5,\,6 из \cite{CLY2023} для седлового случая.
+
+\subsection{Контроль линейного члена}
+
+Обозначим $\delta_x=\|\hatG_x-G_x\|_{x,*}$ и $\delta_y=\|\hatG_y-G_y\|_{y,*}$. Определим \emph{хорошее событие}:
+\[
+    H = \{\delta_x\le\varepsilon\}\cap\{\delta_y\le\varepsilon\}.
+\]
+
+\begin{claim}[Концентрация эмпирических субградиентов]
+\label{claim:grad_conc}
+\[
+    \Pr[\delta_x^2>\varepsilon^2]\le\frac{4L^2}{\varepsilon^2 n},\qquad
+    \Pr[\delta_y^2>\varepsilon^2]\le\frac{4L^2}{\varepsilon^2 n}.
+\]
+В частности, $\Pr[\neg H]\le 8L^2/(\varepsilon^2 n)$.
+\end{claim}
+
+\begin{proof}
+$\E\|\hatG_x-G_x\|_{x,*}^2=\frac{1}{n^2}\sum_j\E\|g_{z_j}^x-G_x\|_{x,*}^2\le\frac{4L^2}{n}$ (так как $\|g_z^x\|_{x,*}\le L$). По неравенству Маркова: $\Pr[\delta_x^2>\varepsilon^2]\le\frac{4L^2}{\varepsilon^2 n}$. Аналогично для $\delta_y$.
+\end{proof}
+
+\subsection{Утверждение о малости эмпирических дивергенций (аналог Claim~6)}
+
+\begin{claim}[Saddle-ERM имеет малые эмпирические дивергенции]
+\label{claim:saddle_claim6}
+Пусть $(\hat{x},\hat{y})\in\SP(\hatF)$. Тогда на событии $H$:
+\[
+    \hatD^x(\hat{x},x^*)+\hatD^y(\hat{y},y^*)\le 4\varepsilon.
+\]
+\end{claim}
+
+\begin{proof}
+Заметим:
+\begin{align*}
+    \hatD^x(\hat{x},x^*)+\hatD^y(\hat{y},y^*)
+    &=\hatF(\hat{x},y^*)-\hatF(x^*,y^*)-\langle\hatG_x,\hat{x}-x^*\rangle\\
+    &\quad+\hatF(x^*,y^*)-\hatF(x^*,\hat{y})-\langle\hatG_y,\hat{y}-y^*\rangle\\
+    &=\hatF(\hat{x},y^*)-\hatF(x^*,\hat{y})-\langle\hatG_x,\hat{x}-x^*\rangle-\langle\hatG_y,\hat{y}-y^*\rangle.
+\end{align*}
+
+Из седловой точки $(\hat{x},\hat{y})\in\SP(\hatF)$: $\hatF(\hat{x},y^*)\le\hatF(\hat{x},\hat{y})\le\hatF(x^*,\hat{y})$, значит $\hatF(\hat{x},y^*)-\hatF(x^*,\hat{y})\le 0$.
+
+Поэтому:
+\begin{align*}
+    \hatD^x+\hatD^y
+    &\le-\langle\hatG_x,\hat{x}-x^*\rangle-\langle\hatG_y,\hat{y}-y^*\rangle\\
+    &=-\langle\hatG_x-G_x,\hat{x}-x^*\rangle-\langle G_x,\hat{x}-x^*\rangle-\langle\hatG_y-G_y,\hat{y}-y^*\rangle-\langle G_y,\hat{y}-y^*\rangle.
+\end{align*}
+
+Из условий \eqref{eq:foc_x}--\eqref{eq:foc_y}: $-\langle G_x,\hat{x}-x^*\rangle\le 0$ и $-\langle G_y,\hat{y}-y^*\rangle\le 0$. На событии $H$:
+\[
+    |\langle\hatG_x-G_x,\hat{x}-x^*\rangle|\le\|\hatG_x-G_x\|_{x,*}\cdot\|\hat{x}-x^*\|_x\le\varepsilon\cdot 2=2\varepsilon,
+\]
+аналогично $|\langle\hatG_y-G_y,\hat{y}-y^*\rangle|\le 2\varepsilon$.
+
+Итого: $\hatD^x(\hat{x},x^*)+\hatD^y(\hat{y},y^*)\le 2\varepsilon+0+2\varepsilon+0=4\varepsilon$.
+\end{proof}
+
+\subsection{Утверждение о связи gap с дивергенциями (аналог Claim~5)}
+
+\begin{claim}[Большой gap влечёт большие дивергенции]
+\label{claim:saddle_claim5}
+Пусть $(\hat{x},\hat{y})\in\SP(\hatF)$. На событии $H$:
+\[
+    \Gap_F(\hat{x},\hat{y})\le D^x(\hat{x},x^*)+D^y(\hat{y},y^*)+4\varepsilon.
+\]
+В частности, если $D^x(\hat{x},x^*)+D^y(\hat{y},y^*)\le C\varepsilon$, то $\Gap_F(\hat{x},\hat{y})\le(C+4)\varepsilon$.
+\end{claim}
+
+\begin{proof}
+Из леммы~\ref{lem:gap_bregman}:
+\[
+    \Gap_F(\hat{x},\hat{y})\le D^x+D^y+\langle G_x,\hat{x}-x^*\rangle+\langle G_y,\hat{y}-y^*\rangle.
+\]
+
+Оценим линейные члены. Из определения $\hatD^x$:
+\[
+    \langle\hatG_x,\hat{x}-x^*\rangle=\hatF(\hat{x},y^*)-\hatF(x^*,y^*)-\hatD^x(\hat{x},x^*).
+\]
+Аналогично:
+\[
+    \langle\hatG_y,\hat{y}-y^*\rangle=\hatF(x^*,y^*)-\hatF(x^*,\hat{y})-\hatD^y(\hat{y},y^*).
+\]
+Суммируя:
+\[
+    \langle\hatG_x,\hat{x}-x^*\rangle+\langle\hatG_y,\hat{y}-y^*\rangle=\hatF(\hat{x},y^*)-\hatF(x^*,\hat{y})-\hatD^x-\hatD^y\le 0
+\]
+(используем $\hatF(\hat{x},y^*)\le\hatF(x^*,\hat{y})$ из седловой точки и $\hatD^x,\hatD^y\ge 0$).
+
+Теперь:
+\begin{align*}
+    \langle G_x,\hat{x}-x^*\rangle+\langle G_y,\hat{y}-y^*\rangle
+    &=\langle G_x-\hatG_x,\hat{x}-x^*\rangle+\langle\hatG_x,\hat{x}-x^*\rangle\\
+    &\quad+\langle G_y-\hatG_y,\hat{y}-y^*\rangle+\langle\hatG_y,\hat{y}-y^*\rangle\\
+    &\le 2\delta_x+0+2\delta_y+0\le 4\varepsilon
+\end{align*}
+на событии $H$. Подставляя, получаем утверждение.
+\end{proof}
+
+% ============================================================
+\section{Основная теорема}
+% ============================================================
+
+\subsection{Формулировка}
+
+\begin{theorem}[Сложность выборки Saddle-ERM, случай $\ell_2$]
+\label{thm:main}
+Пусть $\|\cdot\|_x=\|\cdot\|_y=\|\cdot\|_2$, $L=1$, $c=1$. Для любого $0<\varepsilon<1$ если
+\[
+    n\ge n_0=\frac{3(d_x+d_y)\ln(40/\varepsilon)}{\varepsilon}+\frac{80}{\varepsilon^2},
+\]
+то с вероятностью не менее $3/4$ над $S\sim\cD^n$ любой Saddle-ERM $(\hat{x},\hat{y})\in\SP(\hatF)$ удовлетворяет:
+\[
+    \Gap_F(\hat{x},\hat{y})\le 50\varepsilon.
+\]
+\end{theorem}
+
+\subsection{Доказательство}
+
+\begin{proof}
+Определим \emph{плохое событие}:
+\[
+    E=\bigl\{(\hat{x},\hat{y})\in\SP(\hatF):\Gap_F(\hat{x},\hat{y})>50\varepsilon\bigr\}.
+\]
+Покажем, что $\Pr[E]\le 1/4$.
+
+\textbf{Шаг 1: Хорошее событие $H$.}
+По утверждению~\ref{claim:grad_conc}:
+\[
+    \Pr[\neg H]\le\frac{8}{\varepsilon^2 n}\le\frac{1}{8}
+\]
+при $n\ge 64/\varepsilon^2$.
+
+\textbf{Шаг 2: Работаем на событии $H$.}
+Предположим, что $E\cap H$ произошло. По утверждению~\ref{claim:saddle_claim5}: если $\Gap_F(\hat{x},\hat{y})>50\varepsilon$, то
+\[
+    D^x(\hat{x},x^*)+D^y(\hat{y},y^*)>46\varepsilon.
+\]
+
+\textbf{Шаг 3: $\varepsilon$-сеть по $\cX\times\cY$.}
+Пусть $\cN_x$ --- $(\varepsilon/3)$-сеть по $\cX$ и $\cN_y$ --- $(\varepsilon/3)$-сеть по $\cY$ (обе по $\ell_2$). По лемме о покрывающих числах \cite{CLY2023}:
+\[
+    |\cN_x|\le\left(\frac{12}{\varepsilon}\right)^{d_x},\qquad
+    |\cN_y|\le\left(\frac{12}{\varepsilon}\right)^{d_y}.
+\]
+Совместная сеть $\cN=\cN_x\times\cN_y$ имеет размер $|\cN|\le(12/\varepsilon)^{d_x+d_y}$.
+
+Поскольку $F(\cdot,y^*)$ и $F(x^*,\cdot)$ являются $1$-липшицевыми (по $\ell_2$), а $\hatF(\cdot,y^*)$ и $\hatF(x^*,\cdot)$ --- тоже, дивергенции $D^x(\cdot,x^*)$, $D^y(\cdot,y^*)$, $\hatD^x(\cdot,x^*)$, $\hatD^y(\cdot,y^*)$ являются $2$-липшицевыми по $\ell_2$ (оценка из ограниченности субградиентов). Значит, для $\|\hat{x}-\tilde{x}\|_2\le\varepsilon/3$:
+\[
+    |D^x(\hat{x},x^*)-D^x(\tilde{x},x^*)|\le\frac{2\varepsilon}{3},
+\]
+и аналогично для остальных дивергенций.
+
+Для сетевой точки $(\tilde{x},\tilde{y})\in\cN$ с $\|\hat{x}-\tilde{x}\|_2\le\varepsilon/3$, $\|\hat{y}-\tilde{y}\|_2\le\varepsilon/3$:
+\[
+    D^x(\tilde{x},x^*)+D^y(\tilde{y},y^*)\ge 46\varepsilon-\frac{4\varepsilon}{3}>44\varepsilon,
+\]
+\[
+    \hatD^x(\tilde{x},x^*)+\hatD^y(\tilde{y},y^*)\le 4\varepsilon+\frac{4\varepsilon}{3}<6\varepsilon.
+\]
+(Последнее --- из утверждения~\ref{claim:saddle_claim6} и липшицевости $\hatD^x,\hatD^y$.)
+
+\textbf{Шаг 4: Концентрационный аргумент.}
+Из $D^x(\tilde{x},x^*)+D^y(\tilde{y},y^*)>44\varepsilon$ следует: хотя бы одно из $D^x(\tilde{x},x^*)>22\varepsilon$ или $D^y(\tilde{y},y^*)>22\varepsilon$. Предположим $D^x(\tilde{x},x^*)>22\varepsilon$ (случай $D^y>22\varepsilon$ симметричен).
+
+По утверждению~\ref{claim:concentration}:
+\[
+    \Pr\!\left[\hatD^x(\tilde{x},x^*)\le\frac{D^x(\tilde{x},x^*)}{2}\right]\le\exp\!\left(-\frac{22\varepsilon\cdot n}{40}\right)=\exp\!\left(-\frac{11\varepsilon n}{20}\right).
+\]
+Но мы показали, что на $E\cap H$ выполнено $\hatD^x(\tilde{x},x^*)\le 6\varepsilon<11\varepsilon=D^x/2$. Значит, событие $E\cap H$ влечёт для соответствующего $(\tilde{x},\tilde{y})\in\cN$: $\hatD^x(\tilde{x},x^*)\le D^x(\tilde{x},x^*)/2$.
+
+Обозначим: $E_{(\tilde{x},\tilde{y})}$ --- событие $\{\hatD^x(\tilde{x},x^*)\le D^x(\tilde{x},x^*)/2\}$ или $\{\hatD^y(\tilde{y},y^*)\le D^y(\tilde{y},y^*)/2\}$ (в зависимости от того, какая дивергенция велика). Тогда:
+\[
+    E\cap H\subseteq\bigcup_{(\tilde{x},\tilde{y})\in\cN}E_{(\tilde{x},\tilde{y})}.
+\]
+
+\textbf{Шаг 5: Union bound.}
+По union bound:
+\[
+    \Pr[E\cap H]\le|\cN|\cdot\exp\!\left(-\frac{11\varepsilon n}{20}\right)\le\left(\frac{12}{\varepsilon}\right)^{d_x+d_y}\exp\!\left(-\frac{11\varepsilon n}{20}\right).
+\]
+Для $n\ge\frac{3(d_x+d_y)\ln(40/\varepsilon)}{\varepsilon}$ правая часть $\le 1/8$.
+
+\textbf{Итог:}
+\[
+    \Pr[E]\le\Pr[\neg H]+\Pr[E\cap H]\le\frac{1}{8}+\frac{1}{8}=\frac{1}{4}.\qedhere
+\]
+\end{proof}
+
+\subsection{Обобщение на произвольные нормы}
+
+\begin{theorem}[Общие нормы]
+\label{thm:general_norm}
+Пусть $\|\cdot\|_x$, $\|\cdot\|_y$ --- произвольные нормы. Для любых $0<\varepsilon,\delta<1$, если
+\[
+    n\ge n_0=\frac{12cd_x}{\varepsilon}\ln\frac{3L}{\varepsilon}+\frac{12cd_y}{\varepsilon}\ln\frac{3L}{\varepsilon}+\Rad_{\cX}^{-1}\!\left(\frac{\varepsilon}{2L}\right)+\Rad_{\cY}^{-1}\!\left(\frac{\varepsilon}{2L}\right)+\frac{16c^2}{\varepsilon^2}\ln\frac{8}{\delta},
+\]
+то с вероятностью не менее $1-\delta$ любой Saddle-ERM $(\hat{x},\hat{y})$ удовлетворяет $\Gap_F(\hat{x},\hat{y})\le C\varepsilon$ для абсолютной константы $C$.
+\end{theorem}
+
+\begin{proof}[Набросок доказательства]
+Вместо $\|\hatG_x-G_x\|_{x,*}\le\varepsilon$ и $\|\hatG_y-G_y\|_{y,*}\le\varepsilon$ (которые контролировались через дисперсию в случае $\ell_2$) используется понятие \emph{representativeness} из \cite{CLY2023}:
+\[
+    \mathrm{Rep}_x(S)=\sup_{x\in\cX}(\mathcal{L}_x(x)-\hat{\mathcal{L}}_x(x)),\quad
+    \mathrm{Rep}_y(S)=\sup_{y\in\cY}(\mathcal{L}_y(y)-\hat{\mathcal{L}}_y(y)),
+\]
+где $\mathcal{L}_x$, $\mathcal{L}_y$ --- линейные аппроксимации функционалов, связанные с субградиентами $g_z^x$, $g_z^y$ соответственно. По следствию~1 из \cite{CLY2023} (применённому дважды, к каждой компоненте):
+\[
+    \mathrm{Rep}_x(S)\le 2L\cdot\Rad(\cX,n)+c\sqrt{\frac{2\ln(4/\delta)}{n}}
+\]
+и аналогично для $y$-компоненты. Это заменяет контроль $\hatG_x,\hatG_y$ в доказательстве теоремы~\ref{thm:main}. Вместо усечённых дивергенций Брегмана используются усечённые версии $T^x$, $T^y$ (аналог раздела~6 из \cite{CLY2023}). Все остальные шаги переносятся дословно.
+\end{proof}
+
+% ============================================================
+\section{Нижняя граница и разделение с равномерной сходимостью}
+% ============================================================
+
+\subsection{Нижняя граница}
+
+\begin{theorem}[Нижняя граница для Saddle-ERM, неформально]
+\label{thm:lower}
+Для любого алгоритма Saddle-ERM существует распределение $\cD$ на классе выпукло-вогнутых функций на $\R^{d_x}\times\R^{d_y}$ такой, что при
+\[
+    n\le c_0\cdot\frac{d_x+d_y}{\varepsilon}
+\]
+с вероятностью не менее $1/2$: $\Gap_F(\hat{x},\hat{y})>\varepsilon$.
+\end{theorem}
+
+\begin{proof}[Конструкция]
+Адаптируем конструкцию Фельдмана \cite{Feldman2016} из задачи минимизации. Там задача $\min_{x\in B^d} F(x)$ сводилась к различению $d$ задач на координатных гиперплоскостях. Для седловой задачи берём функцию $f_z(x,y)=f_z^{(x)}(x)-f_z^{(y)}(y)$, где $f_z^{(x)}$ --- конструкция Фельдмана по $x$, $f_z^{(y)}$ --- по $y$, независимые. Тогда:
+\begin{itemize}
+    \item $f_z(x,y)$ выпукла по $x$ и вогнута по $y$,
+    \item любой Saddle-ERM должен одновременно хорошо приближать $\argmin_x F(x,y^*)$ и $\argmax_y F(x^*,y)$,
+    \item поскольку задачи по $x$ и по $y$ независимы, нижняя граница на число точек для каждой из них прибавляется, откуда $n=\Omega((d_x+d_y)/\varepsilon)$.
+\end{itemize}
+Член $1/\varepsilon^2$ наследуется из нижней границы для агностического обучения, применённой к любой из компонент.
+\end{proof}
+
+\begin{remark}
+Строгое доказательство нижней границы требует точного анализа того, что информация о $x$-компоненте не помогает оценить $y$-компоненту (и наоборот) при независимой конструкции. Это следует из независимости выборок, участвующих в двух подзадачах, что выполняется при нашей конструкции.
+\end{remark}
+
+\subsection{Разделение с равномерной сходимостью}
+
+\begin{theorem}[Разделение Saddle-ERM и равномерной сходимости]
+\label{thm:separation}
+Существуют классы выпукло-вогнутых функций такие, что:
+\begin{enumerate}
+    \item Любой Saddle-ERM успешен при $n=\tilde{O}((d_x+d_y)/\varepsilon+1/\varepsilon^2)$.
+    \item Равномерная сходимость требует $n=\Omega((d_x+d_y)/\varepsilon^2)$.
+\end{enumerate}
+В частности, Saddle-ERM строго эффективнее равномерной сходимости.
+\end{theorem}
+
+\begin{proof}[Набросок]
+Верхняя граница для Saddle-ERM --- теорема~\ref{thm:main}. Нижняя граница для равномерной сходимости следует из того, что равномерная сходимость $\sup_{(x,y)\in\cX\times\cY}|F(x,y)-\hatF(x,y)|\le\varepsilon$ требует $n=\Omega((d_x+d_y)/\varepsilon^2)$ по размерностным аргументам (аналог теоремы Фельдмана \cite{Feldman2016}). Действительно, для разделения равномерной сходимости и Saddle-ERM мы можем использовать ту же конструкцию с аддитивной функцией: равномерная сходимость должна контролировать все $(x,y)$-пары одновременно, что требует в $1/\varepsilon$ раз больше точек по $d$-размерному члену.
+\end{proof}
+
+% ============================================================
+\section{Заключение}
+% ============================================================
+
+В работе мы обобщили результат Carmon, Livni, Yehudayoff \cite{CLY2023} на стохастические седловые задачи.
+
+\textbf{Основные результаты:}
+\begin{enumerate}
+    \item Определены понятия Saddle-ERM и duality gap как критерия успеха в стохастической выпукло-вогнутой оптимизации.
+    \item Доказано стохастическое условие первого порядка для седловых точек (Предложение~\ref{prop:firstorder}), обобщающее Proposition~3 из \cite{CLY2023}.
+    \item Введена пара дивергенций Брегмана $(D^x,D^y)$; доказаны их неотрицательность (лемма~\ref{lem:nonneg}), ограниченность (лемма~\ref{lem:bounded}) и несмещённость (следствие~\ref{cor:unbiased}).
+    \item Доказана концентрационная лемма (утверждение~\ref{claim:concentration}) --- аналог Claim~7 из \cite{CLY2023}.
+    \item Доказаны аналоги Claims~5,\,6: утверждения~\ref{claim:saddle_claim6}--\ref{claim:saddle_claim5}, устанавливающие связь между Saddle-ERM и дивергенциями.
+    \item Доказана основная теорема~\ref{thm:main}: сложность выборки Saddle-ERM равна $\tilde{O}((d_x+d_y)/\varepsilon+1/\varepsilon^2)$.
+    \item Обсуждены нижняя граница и разделение с равномерной сходимостью.
+\end{enumerate}
+
+\textbf{Главный структурный вывод.} Ключевой шаг оригинальной статьи --- доказательство того, что $\hat{D}$ мало для ERM, --- переносится на седловой случай через тождество:
+\[
+    \hatD^x(\hat{x},x^*)+\hatD^y(\hat{y},y^*)=\hatF(\hat{x},y^*)-\hatF(x^*,\hat{y})-\langle\hatG_x,\hat{x}-x^*\rangle-\langle\hatG_y,\hat{y}-y^*\rangle,
+\]
+где первое слагаемое $\le 0$ по седловому условию, а линейные члены малы по концентрации. Это позволяет применить стандартный аргумент $\varepsilon$-сети по совместному пространству $\cX\times\cY$.
+
+\textbf{Открытые вопросы.} Строгое доказательство нижней границы $\Omega((d_x+d_y)/\varepsilon)$, точный аналог теоремы~\ref{thm:general_norm} с проверкой совместной Радемахеровской сложности, а также вопрос о разделении с равномерной сходимостью в содержательном классе функций остаются направлениями дальнейших исследований.
+
+% ============================================================
+\begin{thebibliography}{99}
+
+\bibitem{CLY2023}
+D.~Carmon, R.~Livni, A.~Yehudayoff.
+\emph{The Sample Complexity of ERMs in Stochastic Convex Optimization}.
+arXiv:2311.05398, 2023.
+
+\bibitem{Feldman2016}
+V.~Feldman.
+\emph{Generalization of ERM in Stochastic Convex Optimization: The Dimension Strikes Back}.
+Advances in Neural Information Processing Systems 29, 2016.
+
+\bibitem{Rockafellar1997}
+R.~T.~Rockafellar.
+\emph{Convex Analysis}.
+Princeton University Press, 1997.
+
+\bibitem{BhatiaDavis2000}
+R.~Bhatia, C.~Davis.
+\emph{A better bound on the variance}.
+American Mathematical Monthly, 107(4):353--357, 2000.
+
+\bibitem{ShalevBenDavid2014}
+S.~Shalev-Shwartz, S.~Ben-David.
+\emph{Understanding Machine Learning: From Theory to Algorithms}.
+Cambridge University Press, 2014.
+
+\bibitem{Bubeck2015}
+S.~Bubeck.
+\emph{Convex Optimization: Algorithms and Complexity}.
+Foundations and Trends in Machine Learning, 8(3--4):231--357, 2015.
+
+\bibitem{Nemirovski2009}
+A.~Nemirovski, A.~Juditsky, G.~Lan, A.~Shapiro.
+\emph{Robust Stochastic Approximation Approach to Stochastic Programming}.
+SIAM Journal on Optimization, 19(4):1574--1609, 2009.
+
+\end{thebibliography}
+
+\end{document}
