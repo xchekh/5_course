@@ -1,10 +1,34 @@
 \documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[russian]{babel}
 \usepackage{amsmath}
 
 \begin{document}
 
+\section*{Двойственная норма}
+
+Для нормы $\|\cdot\|$ на $\mathbb{R}^d$ двойственная норма определяется как:
 \[
 \|g\|_* = \sup_{\|v\|\leq 1}\langle g, v\rangle
+\qquad \text{или эквивалентно} \qquad
+\|g\|_* = \sup_{v \neq 0} \frac{\langle g, v\rangle}{\|v\|}.
 \]
+
+\textbf{Смысл.} Вектор $g$ задаёт линейный функционал $v \mapsto \langle g, v\rangle$.
+Двойственная норма $\|g\|_*$ измеряет максимальное значение этого функционала
+на единичном шаре по $\|\cdot\|$, то есть насколько сильно $g$ может
+<<растянуть>> единичный вектор.
+
+\textbf{Примеры:}
+\begin{itemize}
+    \item $\ell_2$ самодвойственна: $\|g\|_{2,*} = \|g\|_2$.
+    \item $\ell_1$ и $\ell_\infty$ двойственны друг к другу:
+          $\|g\|_{1,*} = \|g\|_\infty$ и $\|g\|_{\infty,*} = \|g\|_1$.
+    \item $\ell_p$ и $\ell_q$ двойственны при $\tfrac{1}{p}+\tfrac{1}{q}=1$.
+\end{itemize}
+
+\textbf{Связь с липшицевостью.} Если $h$ является $L$-липшицевой по $\|\cdot\|$,
+то для любого субградиента $g \in \partial h(x_0)$ выполняется $\|g\|_* \leq L$.
 
 \end{document}
